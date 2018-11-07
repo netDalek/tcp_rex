@@ -1,33 +1,39 @@
 -module(tcp_rex).
 
 %% API exports
--export([start_server/1]).
--export([connect/2, call/4, call/5, close/1]).
+-export([start_server/1, start_server/2]).
+-export([connect/2, connect/3, call/4, call/5, close/1]).
 
 %%====================================================================
 %% API functions
 %%====================================================================
 
+
 start_server(Port) ->
-    Ref = make_ref(),
-    {ok, _} = ranch:start_listener(Ref,
-                                   ranch_tcp,
-                                   #{
-                                     num_acceptors => 1,
-                                     max_connections => infinity,
-                                     socket_opts => [{port, Port}]
-                                    },
-                                   tcp_rex_protocol, []
-                                  ).
+    start_server(Port, erlang:get_cookie()).
+
+start_server(_Port, nocookie) ->
+    exit(tcp_rex_nocookie);
+
+start_server(Port, Cookie) ->
+    tcp_rex_protocol:start(Port, Cookie).
 
 connect(Address, Port) ->
-    gen_tcp:connect(Address, Port, [binary, {packet, 4}, {active, false}]).
+    connect(Address, Port, erlang:get_cookie()).
+
+connect(Address, Port, Cookie) ->
+    case gen_tcp:connect(Address, Port, [binary, {packet, 4}, {active, false}]) of
+        {ok, Socket} ->
+            {ok, {Socket, Cookie}};
+        Error ->
+            Error
+    end.
 
 call(Socket, M, F, A) ->
     call(Socket, M, F, A, 5000).
 
-call(Socket, M, F, A, Timeout) ->
-    send(Socket, {call, {M, F, A}}, Timeout).
+call({Socket, Cookie}, M, F, A, Timeout) ->
+    send(Socket, {call, {M, F, A}, Cookie}, Timeout).
 
 close(Socket) ->
     ok = gen_tcp:close(Socket).
