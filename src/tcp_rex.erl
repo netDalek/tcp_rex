@@ -12,9 +12,6 @@
 start_server(Port) ->
     start_server(Port, erlang:get_cookie()).
 
-start_server(_Port, nocookie) ->
-    exit(tcp_rex_nocookie);
-
 start_server(Port, Cookie) ->
     tcp_rex_protocol:start(Port, Cookie).
 
